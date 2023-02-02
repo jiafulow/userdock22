@@ -54,15 +54,16 @@ RUN wget -qO- https://github.com/opencv/opencv/archive/${OpenCV_VERSION}.tar.gz 
  && cmake .. -DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
     -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib-${OpenCV_VERSION}/modules \
     -DWITH_OPENMP=ON -DBUILD_LIST="core,calib3d,imgproc,imgcodecs,highgui" \
-    -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCS=OFF -DBUILD_opencv_apps=OFF \
+    -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCS=OFF \
+    -DBUILD_opencv_apps=OFF -DBUILD_opencv_js=OFF -DBUILD_JAVA=OFF -DBUILD_OBJC=OFF \
  && cmake --build . -- -j$(nproc) -k \
  && make -j$(nproc) install \
  && cd ../.. && rm -rf opencv-${OpenCV_VERSION} opencv_contrib-${OpenCV_VERSION}
 
 # (iv) AWSSDK
-ARG AWSSDK_VERSION=1.11.5
+ARG AWSSDK_VERSION=1.11.8
 
-RUN wget -qO- https://github.com/aws/aws-sdk-cpp/archive/refs/tags/1.11.5.tar.gz | tar xz \
+RUN wget -qO- https://github.com/aws/aws-sdk-cpp/archive/${AWSSDK_VERSION}.tar.gz | tar xz \
  && cd aws-sdk-cpp-${AWSSDK_VERSION} \
  && bash prefetch_crt_dependency.sh \
  && mkdir build && cd build \
