@@ -4,7 +4,7 @@ LABEL Description="Build environment"
 # Install via APT
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     libssl-dev \
     libcurl4-openssl-dev \
@@ -13,14 +13,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     vim \
     curl \
- && rm -rf /var/lib/apt/lists/*
+    time \
+    # This was removed from the base image on Feb 20, 2023
+    # but still needed by PCL 1.13.0
+    libboost-date-time-dev \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Build from source
+ARG CMAKE_CXX_STANDARD=17
+ARG CMAKE_BUILD_TYPE=Release
 
 # (i) PCL
 ARG PCL_VERSION=1.13.0
-ARG CMAKE_CXX_STANDARD=17
-ARG CMAKE_BUILD_TYPE=Release
 
 RUN wget -qO- https://github.com/PointCloudLibrary/pcl/archive/pcl-${PCL_VERSION}.tar.gz | tar xz \
  && cd pcl-pcl-${PCL_VERSION} \
@@ -39,7 +43,7 @@ RUN wget -q https://downloads.rapidlasso.de/LAStools.zip \
     # Fix memset error
  && sed -i "s@memset(&(vlrs\[i\]), 0,@memset((void*)\&(vlrs[i]), 0,@" LASlib/inc/lasdefinitions.hpp \
  && mkdir build && cd build \
- && cmake .. \
+ && cmake .. -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
  && cmake --build . -- -j$(nproc) -k \
  && make -j$(nproc) install \
  && cd ../.. && rm -rf LAStools
@@ -60,8 +64,19 @@ RUN wget -qO- https://github.com/opencv/opencv/archive/${OpenCV_VERSION}.tar.gz 
  && make -j$(nproc) install \
  && cd ../.. && rm -rf opencv-${OpenCV_VERSION} opencv_contrib-${OpenCV_VERSION}
 
-# (iv) AWSSDK
-ARG AWSSDK_VERSION=1.11.8
+# (iv) CCCoreLib
+ARG CCCoreLib_SHA=5990bae
+
+RUN git clone https://github.com/CloudCompare/CCCoreLib \
+ && cd CCCoreLib && git checkout -b integration ${CCCoreLib_SHA} \
+ && mkdir build && cd build \
+ && cmake .. -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCCCORELIB_SCALAR_DOUBLE=OFF \
+ && cmake --build . -- -j$(nproc) -k \
+ && make -j$(nproc) install \
+ && cd ../.. && rm -rf CCCoreLib/
+
+# (v) AWSSDK
+ARG AWSSDK_VERSION=1.11.28
 
 RUN wget -qO- https://github.com/aws/aws-sdk-cpp/archive/${AWSSDK_VERSION}.tar.gz | tar xz \
  && cd aws-sdk-cpp-${AWSSDK_VERSION} \
