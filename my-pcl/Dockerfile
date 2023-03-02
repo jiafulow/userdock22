@@ -1,4 +1,4 @@
-FROM pointcloudlibrary/env:22.04
+FROM pointcloudlibrary/env:22.04@sha256:2d6da95641eba695d6c3e1340dc7ab31c03039a76e68a0849de951a08b028f3a
 LABEL Description="Build environment"
 
 # Install via APT
@@ -13,23 +13,20 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     unzip \
     vim \
     curl \
-    time \
-    # This was removed from the base image on Feb 20, 2023
-    # but still needed by PCL 1.13.0
-    libboost-date-time-dev \
- && apt-get clean && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/*
 
 # Build from source
-ARG CMAKE_CXX_STANDARD=17
-ARG CMAKE_BUILD_TYPE=Release
 
 # (i) PCL
 ARG PCL_VERSION=1.13.0
+ARG CMAKE_CXX_STANDARD=17
+ARG CMAKE_BUILD_TYPE=Release
 
 RUN wget -qO- https://github.com/PointCloudLibrary/pcl/archive/pcl-${PCL_VERSION}.tar.gz | tar xz \
  && cd pcl-pcl-${PCL_VERSION} \
  && mkdir build && cd build \
  && cmake .. -DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+    -DPCL_ONLY_CORE_POINT_TYPES=ON \
  && cmake --build . -- -j$(nproc) -k \
  && make -j$(nproc) install \
  && cd ../.. && rm -rf pcl-pcl-${PCL_VERSION}
@@ -60,6 +57,7 @@ RUN wget -qO- https://github.com/opencv/opencv/archive/${OpenCV_VERSION}.tar.gz 
     -DWITH_OPENMP=ON -DBUILD_LIST="core,calib3d,imgproc,imgcodecs,highgui" \
     -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCS=OFF \
     -DBUILD_opencv_apps=OFF -DBUILD_opencv_js=OFF -DBUILD_JAVA=OFF -DBUILD_OBJC=OFF \
+    -DWITH_OPENEXR=OFF \
  && cmake --build . -- -j$(nproc) -k \
  && make -j$(nproc) install \
  && cd ../.. && rm -rf opencv-${OpenCV_VERSION} opencv_contrib-${OpenCV_VERSION}
