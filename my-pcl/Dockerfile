@@ -1,4 +1,4 @@
-FROM pointcloudlibrary/env:22.04@sha256:2d6da95641eba695d6c3e1340dc7ab31c03039a76e68a0849de951a08b028f3a
+FROM pointcloudlibrary/env:22.04
 LABEL Description="Build environment"
 
 # Install via APT
@@ -13,20 +13,23 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     unzip \
     vim \
     curl \
+    # This was removed from the base image on Feb 20, 2023
+    # but still needed by PCL 1.13.0
+    libboost-date-time-dev \
  && rm -rf /var/lib/apt/lists/*
 
 # Build from source
+ARG CMAKE_CXX_STANDARD=17
+ARG CMAKE_BUILD_TYPE=Release
 
 # (i) PCL
 ARG PCL_VERSION=1.13.0
-ARG CMAKE_CXX_STANDARD=17
-ARG CMAKE_BUILD_TYPE=Release
 
 RUN wget -qO- https://github.com/PointCloudLibrary/pcl/archive/pcl-${PCL_VERSION}.tar.gz | tar xz \
  && cd pcl-pcl-${PCL_VERSION} \
  && mkdir build && cd build \
  && cmake .. -DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
-    -DPCL_ONLY_CORE_POINT_TYPES=ON \
+    -DPCL_ONLY_CORE_POINT_TYPES=ON -DPCL_DISABLE_GPU_TESTS=ON -DPCL_DISABLE_VISUALIZATION_TESTS=ON \
  && cmake --build . -- -j$(nproc) -k \
  && make -j$(nproc) install \
  && cd ../.. && rm -rf pcl-pcl-${PCL_VERSION}
@@ -65,7 +68,7 @@ RUN wget -qO- https://github.com/opencv/opencv/archive/${OpenCV_VERSION}.tar.gz 
 # (iv) CCCoreLib
 ARG CCCoreLib_SHA=5990bae
 
-RUN git clone https://github.com/CloudCompare/CCCoreLib \
+RUN git clone --single-branch --branch=master https://github.com/CloudCompare/CCCoreLib \
  && cd CCCoreLib && git checkout -b integration ${CCCoreLib_SHA} \
  && mkdir build && cd build \
  && cmake .. -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCCCORELIB_SCALAR_DOUBLE=OFF \
@@ -74,13 +77,15 @@ RUN git clone https://github.com/CloudCompare/CCCoreLib \
  && cd ../.. && rm -rf CCCoreLib/
 
 # (v) AWSSDK
-ARG AWSSDK_VERSION=1.11.28
+ARG AWSSDK_VERSION=1.11.35
+ARG AWSSDK_BUILD_TYPE=MinSizeRel
 
 RUN wget -qO- https://github.com/aws/aws-sdk-cpp/archive/${AWSSDK_VERSION}.tar.gz | tar xz \
  && cd aws-sdk-cpp-${AWSSDK_VERSION} \
- && bash prefetch_crt_dependency.sh \
+ && sed -i "s/curl /curl --no-progress-meter /" ./prefetch_crt_dependency.sh \
+ && ./prefetch_crt_dependency.sh > /dev/null \
  && mkdir build && cd build \
- && cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DBUILD_ONLY="s3" -DENABLE_TESTING=OFF \
+ && cmake .. -DCMAKE_BUILD_TYPE=${AWSSDK_BUILD_TYPE} -DBUILD_ONLY="s3" -DENABLE_TESTING=OFF \
  && cmake --build . -- -j$(nproc) -k \
  && make -j$(nproc) install \
  && cd ../.. && rm -rf aws-sdk-cpp-${AWSSDK_VERSION}
