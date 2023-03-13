@@ -1,4 +1,4 @@
-FROM pointcloudlibrary/env:22.04
+FROM pointcloudlibrary/env:22.04@sha256:c77bffe9ba4ef01420c5b14d1e09e8697da39e593ee220ab3038ca3a54ee2f54
 LABEL Description="Build environment"
 
 # Install via APT
@@ -29,7 +29,7 @@ RUN wget -qO- https://github.com/PointCloudLibrary/pcl/archive/pcl-${PCL_VERSION
  && cd pcl-pcl-${PCL_VERSION} \
  && mkdir build && cd build \
  && cmake .. -DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
-    -DPCL_ONLY_CORE_POINT_TYPES=ON -DPCL_DISABLE_GPU_TESTS=ON -DPCL_DISABLE_VISUALIZATION_TESTS=ON \
+    -DPCL_ONLY_CORE_POINT_TYPES=ON \
  && cmake --build . -- -j$(nproc) -k \
  && make -j$(nproc) install \
  && cd ../.. && rm -rf pcl-pcl-${PCL_VERSION}
