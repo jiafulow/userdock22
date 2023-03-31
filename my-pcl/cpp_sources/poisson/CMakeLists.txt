@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
-project(PoissonRecon)
+project(PoissonReconLib)
 
-option(BUILD_SHARED_LIB "Builds PoissonRecon as a shared library artifact" OFF)
-option(BUILD_EXECUTABLE "Builds PoissonRecon as a command-line application" ON)
+option(BUILD_SHARED_LIB "Builds PoissonRecon as a shared library artifact" ON)
+option(BUILD_EXECUTABLE "Builds PoissonRecon as a command-line application" OFF)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,6 +17,8 @@ if (MSVC)
         -DRELEASE
         -DNOMINMAX
         -DWIN32_LEAN_AND_MEAN
+        -D_CRT_SECURE_NO_DEPRECATE
+        -D_CRT_SECURE_NO_WARNINGS
         /bigobj
     )
 else()
@@ -49,20 +51,51 @@ add_library(JPEG STATIC ${SRCS_JPEG})
 include_directories(${CMAKE_CURRENT_LIST_DIR} JPEG ZLIB PNG)
 
 if (BUILD_SHARED_LIB)
-    message(STATUS "PoissonRecon: Building shared library")
-    add_library(PoissonRecon SHARED Src/PoissonRecon.cpp)
-    target_link_libraries(PoissonRecon PRIVATE PNG ZLIB JPEG Threads::Threads)
-    target_compile_definitions(PoissonRecon PRIVATE -Dmain=PoissonRecon)
+    message(STATUS "PoissonReconLib: Building shared library")
+    add_library(PoissonReconLib SHARED Src/PoissonReconLib.h Src/PoissonReconLib.cpp)
+    target_link_libraries(PoissonReconLib PRIVATE PNG ZLIB JPEG Threads::Threads)
+
+    find_package(OpenMP REQUIRED COMPONENTS C CXX)
+    target_link_libraries(PoissonReconLib PRIVATE OpenMP::OpenMP_CXX)
+
     install(
-        TARGETS PoissonRecon
-        EXPORT PoissonRecon
+        TARGETS PoissonReconLib
+        EXPORT PoissonReconLibTargets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
         INCLUDES DESTINATION include
-        FRAMEWORK DESTINATION ${CMAKE_INSTALL_PREFIX}
     )
     install(
-        EXPORT PoissonRecon
-        NAMESPACE PoissonRecon::
-        DESTINATION lib/cmake/PoissonRecon
+        EXPORT PoissonReconLibTargets
+        NAMESPACE PoissonReconLib::
+        DESTINATION lib/cmake/PoissonReconLib
+    )
+
+    set(INCLUDE_INSTALL_DIR include)
+    install(FILES Src/PoissonReconLib.h DESTINATION ${INCLUDE_INSTALL_DIR})
+
+    # CMake Package Config Files
+    include(CMakePackageConfigHelpers)
+    configure_package_config_file(${PROJECT_NAME}Config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+        INSTALL_DESTINATION lib/cmake/${PROJECT_NAME}
+        PATH_VARS INCLUDE_INSTALL_DIR
+    )
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+        VERSION 13.8
+        COMPATIBILITY SameMajorVersion
+    )
+    install(
+        FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+              ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+        DESTINATION lib/cmake/${PROJECT_NAME}
+    )
+    export(
+        EXPORT PoissonReconLibTargets
+        FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake
+        NAMESPACE PoissonReconLib::
     )
 endif()
 
