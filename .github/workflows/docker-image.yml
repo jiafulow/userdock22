@@ -47,10 +47,9 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
-          context: .
-          file: ./${{ env.IMAGE_NAME }}/Dockerfile
+          context: "{{defaultContext}}:${{ env.IMAGE_NAME }}"
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
