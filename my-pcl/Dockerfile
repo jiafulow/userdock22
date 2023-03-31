@@ -30,6 +30,14 @@ RUN wget -qO- https://github.com/PointCloudLibrary/pcl/archive/pcl-${PCL_VERSION
  && mkdir build && cd build \
  && cmake .. -DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
     -DPCL_ONLY_CORE_POINT_TYPES=ON \
+    -DWITH_DAVIDSDK=OFF \
+    -DWITH_DSSDK=OFF \
+    -DWITH_ENSENSO=OFF \
+    -DWITH_OPENNI=OFF \
+    -DWITH_OPENNI2=OFF \
+    -DWITH_PCAP=OFF \
+    -DWITH_RSSDK=OFF \
+    -DWITH_RSSDK2=OFF \
  && cmake --build . -- -j$(nproc) -k \
  && make -j$(nproc) install \
  && cd ../.. && rm -rf pcl-pcl-${PCL_VERSION}
@@ -68,7 +76,7 @@ RUN wget -qO- https://github.com/opencv/opencv/archive/${OpenCV_VERSION}.tar.gz 
 # (iv) CCCoreLib
 ARG CCCoreLib_SHA=5990bae
 
-RUN git clone --single-branch --branch=master https://github.com/CloudCompare/CCCoreLib \
+RUN git clone --single-branch --branch=master https://github.com/CloudCompare/CCCoreLib.git \
  && cd CCCoreLib && git checkout -b integration ${CCCoreLib_SHA} \
  && mkdir build && cd build \
  && cmake .. -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCCCORELIB_SCALAR_DOUBLE=OFF \
@@ -76,8 +84,28 @@ RUN git clone --single-branch --branch=master https://github.com/CloudCompare/CC
  && make -j$(nproc) install \
  && cd ../.. && rm -rf CCCoreLib/
 
-# (v) AWSSDK
-ARG AWSSDK_VERSION=1.11.35
+# (v) PoissonReconLib
+ARG PoissonReconLib_SHA=0fc87eb
+
+COPY cpp_sources/poisson /tmp/poisson
+
+RUN git clone --single-branch --branch=master https://github.com/mkazhdan/PoissonRecon.git \
+ && cd PoissonRecon && git checkout -b integration ${PoissonReconLib_SHA} \
+ # Apply pull request https://github.com/mkazhdan/PoissonRecon/pull/231
+ && git remote add pr-231 https://github.com/migr8/poisson-recon.git && git fetch pr-231 \
+ && git config user.email "you@example.com" && git config user.name "Your Name" \
+ && git merge pr-231/master --no-edit \
+ # Add modifictions
+ && cp /tmp/poisson/CMakeLists.txt /tmp/poisson/PoissonReconLibConfig.cmake.in . \
+ && cp /tmp/poisson/PoissonReconLib.h /tmp/poisson/PoissonReconLib.cpp Src \
+ && mkdir build && cd build \
+ && cmake .. -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+ && cmake --build . -- -j$(nproc) -k \
+ && make -j$(nproc) install \
+ && cd ../.. && rm -rf PoissonRecon/
+
+# (vi) AWSSDK
+ARG AWSSDK_VERSION=1.11.46
 ARG AWSSDK_BUILD_TYPE=MinSizeRel
 
 RUN wget -qO- https://github.com/aws/aws-sdk-cpp/archive/${AWSSDK_VERSION}.tar.gz | tar xz \
@@ -100,3 +128,4 @@ USER docker:docker
 WORKDIR /home/docker/build
 
 SHELL ["/bin/bash", "-c"]
+CMD ["sleep", "infinity"]
